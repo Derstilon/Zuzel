@@ -1,0 +1,638 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Żużel</title>
+    <link href="https://fonts.googleapis.com/css?family=Sansita" rel="stylesheet">
+    <meta charset="UTF-8"/>
+    <style>
+        *{
+            font-family: 'Sansita', sans-serif;
+        }
+        body{
+            width: 100%;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            background: #FFEDDC;
+        }
+        header{
+            text-align: center;
+            font-size: 80px;
+            line-height: 150%;
+            font-weight: bold;
+            color: #E37222;
+            text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+            letter-spacing: 15px;
+            position: fixed;
+            width: 100%;
+        }
+        #game{
+            position: fixed;
+            top: 15%;
+            left: calc(50% - 425px);
+            width: 850px;
+        }
+        canvas{
+            position: absolute;
+            top: 10%;
+        }
+        #leaderboard{
+            position: absolute;
+            width: 470px;
+            height: 130px;
+            left: calc(50% - 235px);
+            top: calc(15% + 211px);
+            /*background:; blue;*/
+            font-weight: bold;
+            padding: 25px 0;
+        }
+        /*#07889B
+        #04505B*/
+        #leaderboard label{
+            background: #EEAA7B;
+            padding: 20px;
+            margin: 0 auto;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 90px;
+            border: 2px solid #E37222;
+            margin-top: 20px;
+        }
+        #players{
+            width: 49%;
+            float: left;
+        }
+        #conf_poj{
+            width: 49%;
+            height: 100%;
+            float: right;
+            overflow: hidden;
+            border-radius:  0 30px 30px 0;
+        }
+        #conf_scroll{
+            width: 100%;
+            height: 100%;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            padding-right: 25px;
+        }
+        #config, #start{
+            width: 100%;
+        }
+        #players *{
+            margin-top: 6px;
+        }
+        #leaderboard span{
+            position: relative;
+            bottom: 6px;
+        }
+        #numbers{
+            position: absolute;
+            top: 48px;
+            word-spacing: 52.5px;
+            left: 73px;
+            font-size: 12px;
+            letter-spacing: -1px;
+        }
+        #config label{
+            position: relative;
+        }
+        #config input[type="text"]{
+            padding: 5px;
+            width: 45%;
+            border: 2px solid #E37222;
+            border-radius: 10px;
+        }
+        #config input[type="button"]{
+            min-width: 46%;
+            margin-left:; -5%;
+            float: right;
+            padding: 5px;
+            background: #07889B;
+            border: 2px solid #04505B;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+        }
+        #start input[type="button"]{
+            font-size: 20px;
+            width: 50%;
+            margin: 20px;
+            float: right;
+            margin-right: 5px;
+            padding: 10px;
+            background: #07889B;
+            border: 2px solid #04505B;
+            border-radius: 50px;
+            cursor: pointer;
+        }
+        div[style="margin:0 auto; text-align:center"], div[style="text-align:center;font-size:11px;font-family:arial;background-color:black;color:white"]{
+            position: fixed;
+            top: -100%;
+        }
+    </style>
+    <script>
+        function _Player(){
+            this.id = arguments[4]
+            this.name=arguments[0]
+            this.color=arguments[1]
+            this.position=arguments[2]
+            this.alpha=arguments[3]
+            this.playing=true
+            this.laps = -1
+            this.start = false
+        }
+        new_lap = []
+        track = [
+            [225, 104, 400, 127],
+            [225, 369, 400, 127],
+            //496
+            //#E37222
+        ]
+        colors = [
+            "Red","Green","Blue",
+            "Magenta", /*Cyan*/"Teal","Yellow", 
+            "PaleVioletRed","Indigo","Orange",
+            "Sienna","White",
+            "Gray","Black"
+        ]
+        track_colors = [
+            "192, 0, 0,","0, 192, 0,","0, 0, 192,",
+            "192, 0, 192,","0, 192, 192,","192, 192, 0,",
+            "192, 128, 0,","128, 0, 192,","128, 192, 0,",
+            "128, 63, 16,","255, 255, 255,",
+            "128, 128, 128,","0, 0, 0,",
+        ]
+        buttons = [
+            "A",
+            "B",
+            "X",
+            "J",
+            "Space",
+            "numpad 2",
+            "Control",
+            "ArrowLeft",
+            "+",
+            "Q",
+            "F",
+            ",",
+            "7"
+        ]
+        pressed = []
+        g_keycodes = [65,66,88,74,32]
+        keycodes = [65,66,88,74,32,98,17,37,107,81,70,188,103]
+        players = []
+        tracks = []
+        config = 0
+        speed = 0.025
+        leader = 0
+        imageObj = new Image()
+        keydownObj = new Image()
+        leaderObj = new Image()
+        imageObj.src = 'img/bike.png'
+        leaderObj.src = 'img/crown.png'
+        keydownObj.src = 'img/bike0.png'
+        /*function fade(start, end, color, fading, time){
+            setTimeout(function(){
+                var canvas = document.getElementById("tracks"),
+                    ctx_f = canvas.getContext("2d")
+                ctx_f.beginPath()
+                ctx_f.moveTo(start[0],start[1])
+                ctx_f.lineWidth = 4
+                ctx_f.strokeStyle = "rgba("+ color + String(fading) + ")"
+                ctx_f.lineTo(end[0],end[1])
+                ctx_f.closePath()
+                ctx_f.stroke();
+                setTimeout(function(){
+                    if(fading != 1)
+                        fade(start, end, color, (fading + 0.2), 0)
+                },49)
+            }, time)
+            //http://stackoverflow.com/questions/16431140/remove-a-previous-stroke-make-a-temporary-line-javascript-html5
+            //TEMPORARY LINES
+        }*/
+        function rgbToHex(r, g, b) {
+            if (r > 255 || g > 255 || b > 255)
+                throw "Invalid color component";
+            return ((r << 16) | (g << 8) | b).toString(16);
+        }
+        function leaderboard(){
+            
+        }
+        function hello_there(){
+            var canvas = document.getElementById("tracks"),
+                ctx = canvas.getContext("2d")
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            for(var i in players){
+                if(players[i].playing == true){
+                    var x = players[i].position[0],
+                        y = players[i].position[1],
+                        rad = Math.PI/180,
+                        step = 2*speed *7,
+                        fading = 0,
+                        max_length = 60 + Math.floor((340/players.length)/(7*speed))
+                    if(pressed[i] == true && players[i].laps > -1){
+                        players[i].alpha += (0.5 + speed) *7
+                    }
+                    x += Math.sin(players[i].alpha * rad) * step;
+                    y += Math.cos(players[i].alpha * rad) * step;
+                    if(tracks[i].length > max_length)
+                        tracks[i].shift()
+                    tracks[i].push( { x1:players[i].position[0], y1:players[i].position[1], x2:x, y2:y } );
+                    ctx.lineWidth = 2
+                    players[i].position[0] = x
+                    players[i].position[1] = y
+                    if(players[i].name=="Gniewny" || players[i].name=="Kozik"){
+                        ctx.beginPath()
+                        ctx.strokeStyle = "rgba("+ track_colors[i] + "1 )"
+                        if(tracks[i].length > 10){
+                            ctx.moveTo(tracks[i][tracks[i].length-10].x1,tracks[i][tracks[i].length-10].y1)
+                        } else{
+                            ctx.moveTo(tracks[i][0].x1,tracks[i][0].y1)
+                        }
+                        ctx.lineTo(tracks[i][tracks[i].length-1].x2,tracks[i][tracks[i].length-1].y2)
+                        ctx.stroke();
+                        var canv = document.getElementById("canvas"),
+                            c = canv.getContext("2d"),
+                            p
+                                if(tracks[i].length > 10){
+                                    p = c.getImageData(tracks[i][tracks[i].length-10].x2, tracks[i][tracks[i].length-10].y2, 1, 1).data
+                                } else{
+                                    p = c.getImageData(tracks[i][0].x2, tracks[i][0].y2, 1, 1).data
+                                }
+                                hex = ""
+                            hex = "#" + rgbToHex(p[0], p[1], p[2])
+                            if(hex.toUpperCase() != "#EEAA7B"){
+                                players[i].playing = false
+                            }
+                            //players[i].start = hex.toUpperCase()
+                            //console.log(hex,players[i].start)
+                            var x=230+15,
+                                y=369+127;
+
+                            if((players[leader].laps < players[i].laps) || (players[leader].playing == false && players[leader].laps == players[i].laps))
+                                leader = i
+                            //console.log((players[i].position[0] > 230 && players[i].position[0] < x && players[i].position[1] < 369 &&  players[i].position[1] > y && players[i].start == false))
+                            if(players[i].position[0] >= 230 && players[i].position[0] <= x && players[i].position[1] >= 369 &&  players[i].position[1] <= y && players[i].start == false )
+                            {
+                                players[i].start = true
+                                players[i].laps ++
+                                new_lap.push(i)
+                                setTimeout(function(){
+                                    players[new_lap[0]].start = false
+                                    new_lap.shift()
+                                }, 1000)
+                            }
+                    }else{
+                        for(var j in tracks[i]){
+                            ctx.beginPath()
+                            fading = (max_length - tracks[i].length)/30 + j * 2/100
+                            ctx.strokeStyle = "rgba("+ track_colors[i] + String(fading) + " )"
+                            ctx.moveTo(tracks[i][j].x1,tracks[i][j].y1)
+                            ctx.lineTo(tracks[i][j].x2,tracks[i][j].y2)
+                            ctx.stroke();
+                            var canv = document.getElementById("canvas"),
+                                c = canv.getContext("2d"),
+                                p = c.getImageData(tracks[i][j].x2, tracks[i][j].y2, 1, 1).data,
+                                hex = ""
+                            hex = "#" + rgbToHex(p[0], p[1], p[2])
+                            if(hex.toUpperCase() != "#EEAA7B"){
+                                players[i].playing = false
+                            }
+                            //players[i].start = hex.toUpperCase()
+                            //console.log(hex,players[i].start)
+                            var x=230+15,
+                                y=369+127;
+
+                            if((players[leader].laps < players[i].laps) || (players[leader].playing == false && players[leader].laps == players[i].laps))
+                                leader = i
+                            //console.log((players[i].position[0] > 230 && players[i].position[0] < x && players[i].position[1] < 369 &&  players[i].position[1] > y && players[i].start == false))
+                            if(players[i].position[0] >= 230 && players[i].position[0] <= x && players[i].position[1] >= 369 &&  players[i].position[1] <= y && players[i].start == false )
+                            {
+                                players[i].start = true
+                                players[i].laps ++
+                                new_lap.push(i)
+                                setTimeout(function(){
+                                    players[new_lap[0]].start = false
+                                    new_lap.shift()
+                                }, 1000)
+                            }
+                            //alert("HEX: " + hex);
+                        }
+                    }
+                                                                /* 
+                    //OLD PATH CODE
+                    ctx.beginPath()
+                    ctx.lineWidth = 3
+                    if(pressed[i] == true){
+                        players[i].alpha += 0.8
+                    }
+                    ctx.moveTo(x,y)
+                    //console.log(x,y)
+                    x += Math.sin(players[i].alpha * rad) * step;
+                    y += Math.cos(players[i].alpha * rad) * step;
+                    fade(
+                        [players[i].position[0],players[i].position[1]],
+                        [x,y],
+                        "238,170,123,", 0.2, 2000
+                    )
+                    players[i].position[0] = x
+                    players[i].position[1] = y
+                    ctx.lineTo(x,y)
+                    ctx.strokeStyle = players[i].color
+                    //ctx.closePath()
+                    ctx.stroke();
+                    //OLD PATH CODE
+                                                                */
+                    if(i = 0)
+                        document.getElementById('name').textContent = fading
+                }else if(tracks[i].length > 0){
+                    var fading = 0
+                    tracks[i].shift()
+                    if(players[i].name!="Gniewny" && players[i].name!="Kozik")
+                        for(var j in tracks[i]){
+                            ctx.beginPath()
+                            fading = j * 2 / 100
+                            ctx.strokeStyle = "rgba("+ track_colors[i] + String(fading) + " )"
+                            ctx.moveTo(tracks[i][j].x1,tracks[i][j].y1)
+                            ctx.lineTo(tracks[i][j].x2,tracks[i][j].y2)
+                            ctx.stroke();
+                            //alert("HEX: " + hex);
+                        }
+                }
+                racers()
+            }
+        }
+        function racers(){
+            var canvas = document.getElementById("racers"),
+                ctx = canvas.getContext("2d"),
+                rad = Math.PI/180
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.beginPath()
+            ctx.fillStyle = "#E37222"
+            ctx.rect(230, 369, 15, 127)
+            ctx.fill()
+            for(var i = 0; i < players.length; i++){
+                var x = players[i].position[0],
+                    y = players[i].position[1],
+                    alpha = players[i].alpha,
+                    rad = Math.PI/180,
+                    size = 1.4
+                
+                ctx.save()
+                ctx.translate(x, y)
+                ctx.rotate((alpha+180) * -Math.PI/180)
+                if(pressed[i] == true && players[i].laps > -1)
+                    ctx.drawImage(keydownObj, -20*size, -20*size, 40*size, 40*size)
+                else{
+                    ctx.drawImage(imageObj, -20*size, -20*size, 40*size, 40*size)
+                }
+                ctx.restore()
+                ctx.beginPath()
+                ctx.lineWidth = 7
+                ctx.moveTo(x,y)
+                ctx.lineTo(
+                    x + Math.sin(alpha * rad)*4,
+                    y + Math.cos(alpha * rad)*4)
+                ctx.strokeStyle = players[i].color
+                ctx.closePath()
+                ctx.stroke()
+                ctx.textBaseline = "middle"
+                ctx.textAlign = "center"
+                ctx.font = "40px Sansita";
+                ctx.fillStyle = "rgba("+ track_colors[i] +"1)"
+                if(players[i].playing==false)
+                    ctx.fillStyle = "rgba("+ track_colors[i] +"0.3)"
+                if(players[i].laps > -1)
+                    ctx.fillText(players[i].laps, 425 - Math.floor(40*(players.length-1)/2) + 40*i, 295)
+                if(i == leader && players[i].laps > 0)
+                    ctx.drawImage(leaderObj, 405 - Math.floor(40*(players.length-1)/2) + 40*i, 260, 39, 23)
+                ctx.fillStyle = "black"
+                ctx.font = "11px Sansita";
+                ctx.lineWidth = 1
+                ctx.fillText(players[i].name,x,y - 14 * (Math.abs(Math.cos(alpha*rad))+1))
+                //alert(Math.abs(alpha-180)/90)
+                //ctx.save()
+                //ctx.restore()
+            }
+        }
+        function config_p(number){
+            var form = document.getElementById('config')
+            var labels = []
+            for(var i = 0; i < config; i++){
+                labels[i] = document.getElementById('l' + i)
+            }
+            form.innerHTML = ''
+            if(!(number > config)){
+                console.log("true")
+                for(var i = 0; i < number; i++){
+                    form.appendChild(labels[i])
+                }
+            }else{
+                console.log("Config", "number", number, "config", config, labels.length, labels)
+                for(var i = 0; i < labels.length; i++){
+                    form.appendChild(labels[i])
+                    //alert(form.innerHTML)
+                }
+                for(var i = 0; i < number - labels.length; i++){
+                    var label = document.createElement('label'),
+                        name = document.createElement('input'),
+                        button = document.createElement('input')
+                    name.type = "text"
+                    button.type = "button"
+                    name.value = "Player" + (i + labels.length + 1)
+                    button.value = buttons[i+labels.length]
+                    name.id = 'n' + (i + labels.length)
+                    button.id = 'b' + (i + labels.length)
+                    button.onclick = function(){
+                        this.value = ""
+                        g_keycodes[this.id[1]] = undefined
+                    }
+                    button.onkeydown = function(event){
+                        g_keycodes[this.id[1]] = event.keyCode
+                        if(event.key.length > 1)
+                            this.value = event.key
+                        else
+                            this.value = event.key.toUpperCase()
+                        //alert(event.key)
+                        this.blur()
+                    }
+                    label.id = 'l' + (i + labels.length)
+                    label.appendChild(name)
+                    label.appendChild(button)
+                    form.appendChild(label)
+                }
+            }
+            config = number
+        }
+        function init(){
+            nav = document.getElementById('leaderboard')
+            map()
+            config_p(3)
+        }
+        function map(){
+            var canvas = document.getElementById("canvas"),
+                ctx = canvas.getContext("2d")
+            
+            ctx.beginPath()
+            ctx.rect(0, 0, 850, 600)
+            ctx.fillStyle = "#07889B"
+            ctx.fill()
+            
+            ctx.beginPath()
+            ctx.arc(625,300,196,-Math.PI/2,Math.PI/2);
+            ctx.arc(225,300,196,Math.PI/2,(3*Math.PI)/2)
+            ctx.strokeStyle = "#04505B"
+            ctx.lineWidth = 8
+            ctx.closePath()
+            ctx.stroke();
+            ctx.fillStyle = "#EEAA7B"
+            ctx.fill()
+            
+            ctx.beginPath()
+            ctx.arc(625,300,65,-Math.PI/2,Math.PI/2);
+            ctx.arc(225,300,65,Math.PI/2,(3*Math.PI)/2)
+            ctx.strokeStyle = "#04505B"
+            ctx.lineWidth = 8
+            ctx.closePath()
+            ctx.stroke();
+            ctx.fillStyle = "#07889B"
+            ctx.fill()
+            /*var player1 = new _Player("Player1", "red", [225, 225], 90)
+            players.push(player1)
+            var player2 = new _Player("Player2", "yellow", [225, 225], 90)
+            players.push(player2)
+            var player3 = new _Player("Player3", "green", [225, 225], 90)
+            players.push(player3)
+            var player1 = new _Player("Player4", "cyan", [225, 225], 90)
+            players.push(player1)
+            var player2 = new _Player("Player5", "blue", [225, 225], 90)
+            players.push(player2)
+            var player3 = new _Player("Player6", "magenta", [225, 225], 90)
+            players.push(player3)
+            var player1 = new _Player("Player1", "red", [225, 225], 90)
+            players.push(player1)
+            var player2 = new _Player("Player2", "yellow", [225, 225], 90)
+            players.push(player2)
+            var player3 = new _Player("Player3", "green", [225, 225], 90)
+            players.push(player3)
+            var player1 = new _Player("Player4", "cyan", [225, 225], 90)
+            players.push(player1)
+            var player2 = new _Player("Player5", "blue", [225, 225], 90)
+            players.push(player2)
+            var player3 = new _Player("Player6", "magenta", [225, 225], 90)
+            players.push(player3)*/
+            
+            
+            /*ctx.beginPath()
+            ctx.fillStyle = "#E37222"
+            ctx.rect(225, 104, 400, 127)
+            ctx.rect(225, 369, 400, 127)
+            ctx.fill()*/
+            
+            
+        }
+        function start_game(){/*document.onclick != function()*/
+            var ready = true
+            for(var i in g_keycodes){
+                if(g_keycodes[i] == undefined)
+                    ready = false
+            }
+            if(ready == true){
+                for(var i = 0; i < config; i++){
+                    name = document.getElementById('n'+ i).value
+                    var player = new _Player(name, colors[i], [225, 225], 90, i)
+                    players.push(player)
+                    tracks[i] = []
+                    pressed[i] = false
+                    window.onkeydown = function(event){
+                        for(var i = 0; i < config; i++){
+                            if(event.keyCode == g_keycodes[i]){
+                                pressed[i] = true
+                            }
+                        }
+                    }
+                    window.onkeyup = function(event){
+                        //alert(event.keyCode)
+                        for(var i = 0; i < config; i++){
+                            if(event.keyCode == g_keycodes[i])
+                                pressed[i] = false
+                        }
+                    }
+                    //pressed[2] = true
+                }
+                var canvas = document.getElementById("racers"),
+                    ctx = canvas.getContext("2d")
+                ctx.beginPath()
+                ctx.fillStyle = "#E37222"
+                ctx.rect(230, 369, 7, 127)
+                ctx.fill()
+                for(var i = 0; i < players.length; i++){
+                    players[i].position[0] = 200 //230 - (players.length - 1 - i)*15 //225
+                    players[i].position[1] = 374+((117/(players.length+1))*(i+1))
+                    console.log(i,players[i])
+                }
+                racers()
+                document.getElementById("leaderboard").innerHTML = ""
+                window.setInterval(function(){
+                    if(speed < 1){
+                        speed += 0.025
+                    }else{
+                        speed += 0.0005
+                    }
+                    hello_there()
+                }, 15 *4);
+            }else{
+                alert("Ustaw wszystkie klawisze")
+            }
+        }
+    </script>
+</head>
+<body onload="init()">
+    <header id='name'>Żużel</header>
+    <div id="game">
+        <canvas id="canvas" width="850px" height="600px" style="border:solid 1px;">
+        </canvas>
+        <canvas id="tracks" width="850px" height="600px" style="border:solid 1px;">
+        </canvas>
+        <canvas id="racers" width="850px" height="600px" style="border:solid 1px;">
+        </canvas>
+    </div>
+    <nav id="leaderboard">
+        <form id='players'>
+            <label>
+                <span>Players</span><input type="range" min="1" max="5" value="3" onchange="config_p(this.value)"><p id='numbers'>1 3 5</p>
+            </label>
+        </form>
+        <div id="conf_poj">
+            <div id="conf_scroll">
+                <form id="config">
+                    <!-- <label id="l0">
+                        <input id="n0" type="text" value="Player1">
+                        <input id="b0" type="button" value="A">
+                    </label>
+                    <label id="l1">
+                        <input type="text" id="n1" value="Player2">
+                        <input id="b1" type="button" value="B">
+                    </label>
+                    <label id="l2">
+                        <input type="text" id="n2" value="Player3">
+                        <input id="b2" type="button" value="X">
+                    </label>
+                    <label id="l3">
+                        <input type="text" id="n3" value="Player4">
+                        <input type="button" value="J" id="b3">
+                    </label>
+                    <label id="l4">
+                        <input type="text" id="n4" value="Player5">
+                        <input type="button" value="Space" id="b4">
+                    </label> -->
+                </form>
+                <form id='start'>
+                    <input id="start_btn" type="button" onclick='start_game()' value='Start'/>
+                </form>
+            </div>
+        </div>
+    </nav>
+</body>
+</html>				
